@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ollama API Tester</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    h1 {
+      color: #1a73e8;
+    }
+    
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    button {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px 5px 5px 0;
+    }
+    
+    button:hover {
+      background: #1557b0;
+    }
+    
+    input, select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 300px;
+      margin: 5px 0;
+    }
+    
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .success {
+      background: #e6f4ea;
+      color: #137333;
+      border: 1px solid #137333;
+    }
+    
+    .error {
+      background: #fce8e6;
+      color: #c5221f;
+      border: 1px solid #c5221f;
+    }
+    
+    .info {
+      background: #e8f0fe;
+      color: #1967d2;
+      border: 1px solid #1967d2;
+    }
+    
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .command {
+      background: #f1f3f4;
+      padding: 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Ollama API Diagnostic Tool</h1>
+  <p>Use this tool to test your Ollama installation and find the correct API endpoint.</p>
+
+  <div class="test-section">
+    <h2>Configuration</h2>
+    <label>Ollama Server URL:</label>
+    <input type="text" id="serverUrl" value="http://localhost:11434">
+    
+    <label>Model Name:</label>
+    <input type="text" id="modelName" value="llama2">
+  </div>
+
+  <div class="test-section">
+    <h2>Test 1: Check Ollama Server</h2>
+    <p>This checks if Ollama is running and accessible.</p>
+    <button onclick="testServerRunning()">Test Server</button>
+    <div id="serverResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 2: List Models</h2>
+    <p>This lists all installed models on your Ollama server.</p>
+    <button onclick="testListModels()">List Models</button>
+    <div id="modelsResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 3: Test /api/chat Endpoint</h2>
+    <p>This tests the native Ollama chat endpoint (recommended for v0.16.1+).</p>
+    <button onclick="testChatEndpoint()">Test Chat API</button>
+    <div id="chatResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 4: Test /api/generate Endpoint</h2>
+    <p>This tests the native Ollama generate endpoint (legacy).</p>
+    <button onclick="testGenerateEndpoint()">Test Generate API</button>
+    <div id="generateResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 5: Test OpenAI-Compatible Endpoint</h2>
+    <p>This tests the OpenAI-compatible endpoint (if available).</p>
+    <button onclick="testOpenAIEndpoint()">Test OpenAI API</button>
+    <div id="openaiResult"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Quick Commands</h2>
+    <p>Run these in your terminal to diagnose issues:</p>
+    
+    <h3>Check if Ollama is running:</h3>
+    <div class="command">curl http://localhost:11434/api/tags</div>
+    
+    <h3>List installed models:</h3>
+    <div class="command">ollama list</div>
+    
+    <h3>Install llama2 model:</h3>
+    <div class="command">ollama pull llama2</div>
+    
+    <h3>Start Ollama server:</h3>
+    <div class="command">ollama serve</div>
+    
+    <h3>Test chat endpoint:</h3>
+    <div class="command">curl http://localhost:11434/api/chat -d '{
+  "model": "llama2",
+  "messages": [{"role": "user", "content": "Hi"}],
+  "stream": false
+}'</div>
+  </div>
+
+  <script>
+    function getServerUrl() {
+      return document.getElementById('serverUrl').value;
+    }
+    
+    function getModelName() {
+      return document.getElementById('modelName').value;
+    }
+    
+    function showResult(elementId, message, type) {
+      const el = document.getElementById(elementId);
+      el.className = `result ${type}`;
+      el.textContent = message;
+    }
+    
+    async function testServerRunning() {
+      const serverUrl = getServerUrl();
+      showResult('serverResult', 'Testing...', 'info');
+      
+      try {
+        const response = await fetch(`${serverUrl}/api/tags`);
+        if (response.ok) {
+          const data = await response.json();
+          showResult('serverResult', 
+            `✅ SUCCESS! Ollama is running.\n\nModels found: ${data.models ? data.models.length : 0}\n\n${JSON.stringify(data, null, 2)}`,
+            'success'
+          );
+        } else {
+          showResult('serverResult', 
+            `❌ Server responded with: ${response.status} ${response.statusText}`,
+            'error'
+          );
+        }
+      } catch (error) {
+        showResult('serverResult', 
+          `❌ ERROR: ${error.message}\n\nMake sure Ollama is running:\n  ollama serve`,
+          'error'
+        );
+      }
+    }
+    
+    async function testListModels() {
+      const serverUrl = getServerUrl();
+      showResult('modelsResult', 'Fetching models...', 'info');
+      
+      try {
+        const response = await fetch(`${serverUrl}/api/tags`);
+        if (response.ok) {
+          const data = await response.json();
+          const models = data.models || [];
+          if (models.length === 0) {
+            showResult('modelsResult', 
+              `⚠️ No models installed!\n\nInstall a model with:\n  ollama pull llama2`,
+              'error'
+            );
+          } else {
+            const modelList = models.map(m => `  - ${m.name} (${(m.size / 1024 / 1024 / 1024).toFixed(2)} GB)`).join('\n');
+            showResult('modelsResult', 
+              `✅ Found ${models.length} model(s):\n\n${modelList}`,
+              'success'
+            );
+          }
+        } else {
+          showResult('modelsResult', `❌ Failed: ${response.status}`, 'error');
+        }
+      } catch (error) {
+        showResult('modelsResult', `❌ ERROR: ${error.message}`, 'error');
+      }
+    }
+    
+    async function testChatEndpoint() {
+      const serverUrl = getServerUrl();
+      const modelName = getModelName();
+      showResult('chatResult', 'Testing chat endpoint...', 'info');
+      
+      try {
+        const response = await fetch(`${serverUrl}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: 'user',
+                content: 'Say "Hello from chat endpoint"'
+              }
+            ],
+            stream: false
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const reply = data.message?.content || JSON.stringify(data);
+          showResult('chatResult', 
+            `✅ SUCCESS! Chat endpoint works!\n\nResponse:\n${reply}\n\nThis is the CORRECT endpoint for your Ollama version.`,
+            'success'
+          );
+        } else {
+          const errorText = await response.text();
+          showResult('chatResult', 
+            `❌ Failed: ${response.status} ${response.statusText}\n\n${errorText}`,
+            'error'
+          );
+        }
+      } catch (error) {
+        showResult('chatResult', `❌ ERROR: ${error.message}`, 'error');
+      }
+    }
+    
+    async function testGenerateEndpoint() {
+      const serverUrl = getServerUrl();
+      const modelName = getModelName();
+      showResult('generateResult', 'Testing generate endpoint...', 'info');
+      
+      try {
+        const response = await fetch(`${serverUrl}/api/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: modelName,
+            prompt: 'Say "Hello from generate endpoint"',
+            stream: false
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const reply = data.response || JSON.stringify(data);
+          showResult('generateResult', 
+            `✅ SUCCESS! Generate endpoint works!\n\nResponse:\n${reply}\n\nThis endpoint is working.`,
+            'success'
+          );
+        } else {
+          const errorText = await response.text();
+          showResult('generateResult', 
+            `❌ Failed: ${response.status} ${response.statusText}\n\n${errorText}\n\nThis endpoint may not be available in your Ollama version.`,
+            'error'
+          );
+        }
+      } catch (error) {
+        showResult('generateResult', `❌ ERROR: ${error.message}`, 'error');
+      }
+    }
+    
+    async function testOpenAIEndpoint() {
+      const serverUrl = getServerUrl();
+      const modelName = getModelName();
+      showResult('openaiResult', 'Testing OpenAI-compatible endpoint...', 'info');
+      
+      try {
+        const response = await fetch(`${serverUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: 'user',
+                content: 'Say "Hello from OpenAI endpoint"'
+              }
+            ]
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const reply = data.choices?.[0]?.message?.content || JSON.stringify(data);
+          showResult('openaiResult', 
+            `✅ SUCCESS! OpenAI-compatible endpoint works!\n\nResponse:\n${reply}\n\nYou can use this with "OpenAI Compatible" mode.`,
+            'success'
+          );
+        } else {
+          const errorText = await response.text();
+          showResult('openaiResult', 
+            `❌ Failed: ${response.status} ${response.statusText}\n\n${errorText}\n\nThis endpoint may not be available in Ollama 0.16.1.`,
+            'error'
+          );
+        }
+      } catch (error) {
+        showResult('openaiResult', `❌ ERROR: ${error.message}`, 'error');
+      }
+    }
+    
+    // Auto-test on load
+    window.addEventListener('load', () => {
+      console.log('Ollama API Tester loaded');
+      console.log('Click buttons to test different endpoints');
+    });
+  </script>
+</body>
+</html>

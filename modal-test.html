@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background: #1a73e8;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #1557b0;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    
+    .modal.hidden {
+      display: none !important;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .close-btn:hover {
+      background: #f1f3f4;
+    }
+    
+    .log {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+    
+    .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .success {
+      color: #137333;
+    }
+    
+    .error {
+      color: #c5221f;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Modal Behavior Test</h1>
+  
+  <div class="test-section">
+    <h2>Test Controls</h2>
+    <button class="btn-primary" id="openModalBtn">Open Modal</button>
+    <button class="btn-primary" id="checkStateBtn">Check Modal State</button>
+    <button class="btn-primary" id="clearLogBtn">Clear Log</button>
+  </div>
+
+  <div class="test-section">
+    <h2>Expected Behavior</h2>
+    <ul>
+      <li>✅ Modal should be hidden on page load</li>
+      <li>✅ Modal should only open when "Open Modal" is clicked</li>
+      <li>✅ Close button (×) should close modal</li>
+      <li>✅ Clicking outside (dark area) should close modal</li>
+      <li>✅ Escape key should close modal</li>
+      <li>✅ Clicking inside modal content should NOT close it</li>
+    </ul>
+  </div>
+
+  <div class="test-section">
+    <h2>Event Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <!-- Test Modal -->
+  <div id="testModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Test Modal</h2>
+        <button class="close-btn" id="closeBtn">×</button>
+      </div>
+      <div>
+        <p>This is a test modal to verify the behavior.</p>
+        <p><strong>Try these:</strong></p>
+        <ul>
+          <li>Click the × button</li>
+          <li>Click outside this white box</li>
+          <li>Press Escape key</li>
+          <li>Click inside this white box (should NOT close)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const log = document.getElementById('log');
+    
+    function addLog(message, type = '') {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${message}`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    function showModal() {
+      const modal = document.getElementById('testModal');
+      addLog('showModal() called', 'success');
+      
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        addLog('Modal classList: ' + modal.className);
+        addLog('Modal display: ' + modal.style.display);
+        addLog('✅ Modal should now be visible', 'success');
+      } else {
+        addLog('❌ Modal element not found!', 'error');
+      }
+    }
+    
+    function hideModal() {
+      const modal = document.getElementById('testModal');
+      addLog('hideModal() called', 'success');
+      
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        addLog('Modal classList: ' + modal.className);
+        addLog('Modal display: ' + modal.style.display);
+        addLog('✅ Modal should now be hidden', 'success');
+      } else {
+        addLog('❌ Modal element not found!', 'error');
+      }
+    }
+    
+    function checkModalState() {
+      const modal = document.getElementById('testModal');
+      if (modal) {
+        const isHidden = modal.classList.contains('hidden');
+        const displayStyle = window.getComputedStyle(modal).display;
+        
+        addLog('--- Modal State Check ---');
+        addLog('classList: ' + modal.className);
+        addLog('Has hidden class: ' + isHidden);
+        addLog('Inline display: ' + modal.style.display);
+        addLog('Computed display: ' + displayStyle);
+        addLog('Is visible: ' + (displayStyle !== 'none' ? 'YES' : 'NO'), 
+               displayStyle !== 'none' ? 'error' : 'success');
+        addLog('--- End State Check ---');
+      }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      addLog('🚀 Page loaded - Initializing');
+      
+      const modal = document.getElementById('testModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        addLog('✅ Modal force-hidden on init');
+      }
+      
+      checkModalState();
+      
+      // Open button
+      document.getElementById('openModalBtn').addEventListener('click', () => {
+        addLog('📝 Open button clicked');
+        showModal();
+      });
+      
+      // Check state button
+      document.getElementById('checkStateBtn').addEventListener('click', () => {
+        checkModalState();
+      });
+      
+      // Clear log button
+      document.getElementById('clearLogBtn').addEventListener('click', () => {
+        log.innerHTML = '';
+        addLog('Log cleared');
+      });
+      
+      // Close button
+      const closeBtn = document.getElementById('closeBtn');
+      if (closeBtn) {
+        addLog('✅ Close button found, attaching handler');
+        closeBtn.addEventListener('click', (e) => {
+          addLog('❌ Close button clicked!');
+          e.preventDefault();
+          e.stopPropagation();
+          hideModal();
+          return false;
+        });
+      } else {
+        addLog('❌ Close button not found!', 'error');
+      }
+      
+      // Click outside to close
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'testModal') {
+          addLog('🖱️ Clicked outside modal (backdrop)');
+          hideModal();
+        }
+      });
+      
+      // Prevent clicks inside modal content from closing
+      const modalContent = document.querySelector('.modal-content');
+      if (modalContent) {
+        modalContent.addEventListener('click', (e) => {
+          addLog('🖱️ Clicked inside modal content (should not close)');
+          e.stopPropagation();
+        });
+      }
+      
+      // Escape key to close
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('testModal');
+          if (modal && !modal.classList.contains('hidden')) {
+            addLog('⌨️ Escape key pressed');
+            hideModal();
+          }
+        }
+      });
+      
+      addLog('✅ All event handlers attached');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Transcript</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: #1a73e8;
+      color: white;
+      padding: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header .video-title {
+      font-size: 13px;
+      opacity: 0.9;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .connection-status {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .status-indicator {
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .status-indicator.connected {
+      color: #4caf50;
+    }
+
+    .status-indicator.disconnected {
+      color: #f44336;
+    }
+
+    .status-indicator.checking {
+      color: #ff9800;
+    }
+
+    .status-text {
+      opacity: 0.9;
+    }
+
+    .controls {
+      padding: 12px;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1557b0;
+    }
+
+    .btn-secondary {
+      background: #f1f3f4;
+      color: #5f6368;
+    }
+
+    .btn-secondary:hover {
+      background: #e8eaed;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .transcript-box {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 200px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: #5f6368;
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .config-panel {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+
+    .config-panel h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #5f6368;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .summary-box {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-top: 16px;
+    }
+
+    .summary-box h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1a73e8;
+    }
+
+    .summary-content {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #5f6368;
+    }
+
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+
+    .error {
+      background: #fce8e6;
+      color: #c5221f;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .success {
+      background: #e6f4ea;
+      color: #137333;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .toggle-config {
+      font-size: 12px;
+      color: #1a73e8;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-left: 8px;
+    }
+
+    /* Hidden class - HIGHEST priority */
+    .hidden {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      /* REMOVED: display: flex - will be set via JS when showing */
+      align-items: center;
+      justify-content: center;
+    }
+    
+    /* Only show modal when NOT hidden */
+    .modal:not(.hidden) {
+      display: flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #5f6368;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .close-btn:hover {
+      background: #f1f3f4;
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .prompt-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .prompts-list {
+      margin-top: 16px;
+    }
+
+    .prompt-item {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .prompt-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .prompt-item-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .prompt-item-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .prompt-item-actions button {
+      padding: 4px 8px;
+      font-size: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: white;
+      border: 1px solid #ddd;
+    }
+
+    .prompt-item-actions button:hover {
+      background: #f1f3f4;
+    }
+
+    .prompt-item-text {
+      font-size: 12px;
+      color: #5f6368;
+      white-space: pre-wrap;
+      max-height: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .default-badge {
+      background: #e8f0fe;
+      color: #1967d2;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+
+    #promptForm {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+    }
+
+    #promptForm h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>YouTube Transcript</h1>
+    <div class="video-title" id="videoTitle">No transcript loaded</div>
+    <div class="connection-status" id="connectionStatus">
+      <span class="status-indicator" id="statusIndicator">⚫</span>
+      <span class="status-text" id="statusText">Checking connection...</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="refreshBtn">Refresh</button>
+    <button class="btn btn-secondary" id="downloadBtn">Download TXT</button>
+    <button class="btn btn-primary" id="summarizeBtn">Summarize</button>
+    <span class="toggle-config" id="toggleConfig">⚙️ Settings</span>
+  </div>
+
+  <div class="content">
+    <div class="config-panel hidden" id="configPanel">
+      <h3>AI Summary Settings</h3>
+      
+      <div class="form-group">
+        <label for="serverType">Server Type</label>
+        <select id="serverType">
+          <option value="ollama">Ollama (localhost:11434)</option>
+          <option value="openai">OpenAI Compatible</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="serverUrl">Server URL</label>
+        <input type="text" id="serverUrl" placeholder="http://localhost:11434" value="http://localhost:11434">
+      </div>
+
+      <div class="form-group">
+        <label for="apiKey">API Key (optional, for OpenAI compatible servers)</label>
+        <input type="password" id="apiKey" placeholder="sk-...">
+      </div>
+
+      <div class="form-group">
+        <label for="modelName">Model Name</label>
+        <div style="display: flex; gap: 8px;">
+          <select id="modelSelect" style="flex: 1;">
+            <option value="">Select a model...</option>
+          </select>
+          <button class="btn btn-secondary" id="fetchModelsBtn" style="width: auto; padding: 8px 12px;">🔄 Fetch</button>
+        </div>
+        <input type="text" id="modelName" placeholder="llama2" value="llama2" style="margin-top: 8px;">
+        <small style="font-size: 11px; color: #5f6368; display: block; margin-top: 4px;">
+          Use dropdown or type manually
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="promptTemplate">Summary Prompt</label>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <select id="promptSelect" style="flex: 1;">
+            <option value="">Select a prompt template...</option>
+          </select>
+          <button class="btn btn-secondary" id="managePromptsBtn" style="width: auto; padding: 8px 12px;">📝 Manage</button>
+        </div>
+        <textarea id="promptTemplate" placeholder="Summarize the following transcript:">Please provide a concise summary of the following YouTube video transcript. Include the main topics discussed and key takeaways:
+
+{transcript}</textarea>
+        <small style="font-size: 11px; color: #5f6368; display: block; margin-top: 4px;">
+          Use {transcript} placeholder for video transcript
+        </small>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" id="saveConfigBtn" style="flex: 1;">Save Settings</button>
+        <button class="btn btn-secondary" id="testConnectionBtn" style="flex: 1;">🔌 Test Connection</button>
+      </div>
+      <div id="configMessage"></div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+      <p>No transcript available</p>
+      <p style="font-size: 12px; margin-top: 8px;">Use Cmd+I on a YouTube video to capture the transcript</p>
+    </div>
+
+    <div id="transcriptContainer" class="hidden">
+      <div class="transcript-box" id="transcriptBox"></div>
+    </div>
+
+    <div id="summaryContainer" class="hidden">
+      <div class="summary-box">
+        <h3>AI Summary</h3>
+        <div class="summary-content" id="summaryContent"></div>
+        <button class="btn btn-secondary" id="downloadSummaryBtn" style="margin-top: 12px;">Download Summary</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+
+  <!-- Prompt Management Modal -->
+  <div id="promptModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Manage Prompt Templates</h2>
+        <button class="close-btn" id="closePromptModal">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="prompt-actions">
+          <button class="btn btn-primary" id="addPromptBtn">➕ Add New Prompt</button>
+          <button class="btn btn-secondary" id="importPromptsBtn">📥 Import</button>
+          <button class="btn btn-secondary" id="exportPromptsBtn">📤 Export</button>
+          <input type="file" id="importFileInput" accept=".json" style="display: none;">
+        </div>
+
+        <div class="prompts-list" id="promptsList">
+          <!-- Prompts will be populated here -->
+        </div>
+
+        <!-- Add/Edit Prompt Form -->
+        <div id="promptForm" class="hidden">
+          <h3 id="formTitle">Add New Prompt</h3>
+          <div class="form-group">
+            <label for="promptName">Prompt Name</label>
+            <input type="text" id="promptName" placeholder="e.g., Technical Summary">
+          </div>
+          <div class="form-group">
+            <label for="promptText">Prompt Template</label>
+            <textarea id="promptText" rows="6" placeholder="Your prompt here... Use {transcript} placeholder"></textarea>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" id="savePromptBtn">💾 Save</button>
+            <button class="btn btn-secondary" id="cancelPromptBtn">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
