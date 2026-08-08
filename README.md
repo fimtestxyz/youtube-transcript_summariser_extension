@@ -1,109 +1,284 @@
-# YouTube Transcript Extension (MV3)
+# YouTube Transcript Extension (MV3) — v0.2.0
 
-A Chrome Extension (Manifest V3) that detects YouTube caption requests to `/api/timedtext?v=...`, confirms a JSON transcript response (`Content-Type: application/json; charset=UTF-8`), shows a small on-page signal, renders a transcript panel on the YouTube page with search and copy functionality, extracts video titles for naming downloads, and provides a popup to configure keyboard shortcuts for downloading JSON transcripts and joined text files.
+A Chrome Extension (Manifest V3) that captures YouTube transcripts (including Chinese/Unicode characters), renders them in an in-page panel and a sidepanel, downloads them as JSON or TXT, and summarizes them with local AI (Ollama) or any OpenAI-compatible API.
 
 ## Why This Approach
 - YouTube watch pages are single-page apps and issue network requests dynamically.
 - The most reliable way to detect actual transcript payloads is to observe `fetch`/`XMLHttpRequest` in the page context and match `*/api/timedtext` URLs that include `v=<videoId>`.
 - A lightweight signal avoids heavy UI and clearly indicates when a transcript is available.
 
+## ✨ Features
+
+### Transcript Capture
+- ✅ Automatic detection of YouTube captions
+- ✅ Supports json3 format transcripts
+- ✅ Works with auto-generated and manual captions
+- ✅ Handles Chinese, Japanese, Korean, and all Unicode characters
+- ✅ Smart filename generation from video titles
+
+### Transcript Display
+- ✅ In-page panel with search, filtering, and click-to-seek
+- ✅ Dedicated sidepanel for better workflow
+- ✅ Copy transcript text
+- ✅ Download as TXT or JSON
+
+### AI Summarization
+- ✅ Local AI via Ollama
+- ✅ Remote OpenAI-compatible APIs
+- ✅ Configurable prompts
+- ✅ Downloadable summaries
+- ✅ Error handling and loading states
+
 ## Requirements
-- Node.js 18+ and pnpm or npm.
-- Chrome 115+ with Manifest V3 support.
-- Basic knowledge of MV3 components: service worker (background), content scripts, and scripting API.
+- Node.js 18+ and pnpm or npm
+- Chrome 115+ with Manifest V3 support
+- Ollama for local AI summarization — see [Ollama Setup](#-ollama-setup)
 
-## Architecture
-- Content Script: Injects a small overlay badge and the transcript panel UI, handles SPA navigation resets, listens for a configurable shortcut, and triggers JSON download.
-- Page-World Hook: Wraps `window.fetch` and `XMLHttpRequest` to detect `/api/timedtext?v=` responses and check JSON `content-type`; fetches the latest timedtext JSON on demand.
-- Popup: Allows configuring the shortcut (modifiers + key) and saves it to `chrome.storage.sync`.
-- Background (Service Worker): Optional; can coordinate messaging or downloads if needed.
+## 🚀 Quick Start
 
-## Detection Strategy
-- Intercept `fetch` and `XMLHttpRequest` in the page world so the extension can see the actual network calls YouTube makes.
-- Check URL contains `/api/timedtext` and a `v=` parameter.
-- After response, verify `status` is OK and `content-type` contains `application/json`.
-- Signal once per current `videoId`; reset on navigation.
+### Installation
+```bash
+npm install
+npm run build
+```
+Then load the `dist` folder as an unpacked extension: open `chrome://extensions` → enable Developer Mode → Load Unpacked → select `dist`.
 
-## Handling YouTube Navigation
-- Listen for `yt-navigate-finish` to detect when the video changes and reset the signal.
-- Fallback: Use a `MutationObserver` watching `ytd-watch-flexy` for changes (e.g., `video-id`).
+### Usage
 
-## Keyboard Shortcut Considerations
-- `Cmd+L` is reserved by Chrome for the address bar. It cannot be overridden reliably.
-- The extension uses configurable shortcuts detected in the content script:
-  - `Cmd+I` (default): Opens transcript panel, shows full transcript, allows search/filtering and copying results
-  - `Cmd+B` (default): Downloads joined transcript text as `<video_title_slug>.txt`
-- The popup updates stored shortcuts and changes apply immediately.
+#### Method 1: Keyboard Shortcuts (On YouTube)
+- **Cmd/Ctrl + I**: Capture transcript and download as JSON
+- **Cmd/Ctrl + B**: Download transcript as plain TXT file
+- Both shortcuts are configurable from the popup. `Cmd+L` is reserved by Chrome and cannot be overridden.
 
-## Build Tool Choice
-- Vite with `@crxjs/vite-plugin` (recommended): Fast, friendly MV3 dev workflow.
-- Webpack (viable alternative): Heavier config; useful if your project standardizes on Webpack.
+#### Method 2: Sidepanel
+1. Click the extension icon in the Chrome toolbar
+2. Click "Open Sidepanel"
+3. Navigate to a YouTube video
+4. Use Cmd+I to capture the transcript
+5. View the transcript in the sidepanel
+6. Click "Summarize" to generate an AI summary
 
-## Step-by-Step (Vite + CRX)
-1. Initialize project
-   - `pnpm create vite youtube-transcript-extension --template vanilla`
-   - `pnpm add -D @crxjs/vite-plugin`
+## 🔧 Configuration
 
-2. Add Manifest V3
-   - Create `manifest.json` with:
-     - `manifest_version: 3`
-     - `name`, `version`, `description`
-     - `host_permissions: ["*://*.youtube.com/*"]`
-     - `permissions: ["scripting", "activeTab"]` (and `"downloads"` if you will save files)
-     - `content_scripts` targeting `https://www.youtube.com/*`
-     - `web_accessible_resources` if you inject a page-world script via `<script>` tag
-     - `commands` for the chosen shortcut (not `Cmd+L`)
+### AI Summary Settings
+Open the settings in the sidepanel by clicking the ⚙️ Settings icon:
 
-3. Configure Vite
-   - In `vite.config.ts`, apply `crx` plugin and point it to `manifest.json`.
-   - Output files for content script and service worker as needed.
+**Server Type:**
+- **Ollama**: For local AI models (default: `http://localhost:11434`)
+- **OpenAI Compatible**: For remote API endpoints
 
-4. Content Script
-   - Inject a minimal badge element (hidden by default).
-   - Insert page-world script to wrap `fetch`/`XHR` and post messages back upon detection.
-   - Show the badge when a JSON timedtext response is detected.
-   - Render a transcript panel when JSON is fetched; parse `json3` into lines with timestamps; clicking a line seeks the player; provide search and current-line highlight.
-   - On navigation (`yt-navigate-finish`), hide the badge, reset the panel, and rebind hooks.
+**Configuration Options:**
+- **Server URL**: API endpoint URL
+- **API Key**: Optional authentication key (for OpenAI-compatible servers)
+- **Model Name**: Model to use (e.g., `gemma4:26b-mlx`, `llama2`, `gpt-4`)
+- **Summary Prompt**: Customize how transcripts are summarized
 
-5. Page-World Hook
-   - Wrap `window.fetch` and `XMLHttpRequest` to detect `/api/timedtext`.
-   - On demand, fetch the last timedtext URL and return the raw JSON text back to the content script.
+### Default Prompt Template
+```
+Please provide a concise summary of the following YouTube video transcript.
+Include the main topics discussed and key takeaways:
 
-6. Shortcut & Download
-   - A configurable shortcut (default `Cmd+I`) triggers a fetch of the latest timedtext JSON and downloads it as `transcript-<videoId>.json`.
-   - The popup updates the shortcut modifiers and key; changes apply immediately.
+{transcript}
+```
 
-7. Dev & Load in Chrome
-   - `npm run dev` to build and watch.
-   - Open Chrome → `chrome://extensions` → enable Developer Mode → Load Unpacked → select `dist`.
-   - Navigate to a video and verify the badge appears when the timedtext JSON request completes; open the transcript panel; test the shortcut and popup configuration.
+The `{transcript}` placeholder is replaced with the actual transcript text.
 
-8. Testing & Validation
-   - Confirm badge appears only after an actual JSON response to `/api/timedtext`.
-   - Navigate between videos; ensure the badge resets appropriately.
-   - Check that no errors appear in the console and YouTube functionality remains intact.
+## 🔌 Ollama Setup
 
-## Step-by-Step (Webpack) [Optional]
-1. Initialize with `webpack` and `ts-loader` or plain JS.
-2. Create `manifest.json` as above.
-3. Bundle content script and service worker entries.
-4. Inject page-world code via `web_accessible_resources` + DOM `<script>` tag.
-5. Implement detection and badge as in Vite steps.
+> **Important:** Ollama must be started with `OLLAMA_ORIGINS="*"` or the extension's "Summarize" button will fail with **HTTP 403 Forbidden**. Use the provided launcher.
 
-## Privacy & Compliance
-- Keep processing client-side. Do not send payloads to external servers.
-- Avoid storing cookies or authentication tokens.
-- Respect YouTube’s Terms; only capture for user’s current session and video.
+### Start Ollama with the launcher
+```bash
+./start_ollama.sh
+```
 
-## Troubleshooting
-- No badge: Captions may be unavailable, response may not be JSON (`fmt` not `json3`), or the endpoint path differs.
-- Navigation resets: Ensure `yt-navigate-finish` or MutationObserver triggers rebind.
-- Shortcut conflicts: Change the shortcut in the popup; avoid reserved combos.
+The script runs:
 
-## Next Steps
-- Add a small settings panel to toggle auto-download or badge style.
-- Support non-JSON formats (e.g., `srv3`, `vtt`) by adjusting detection and conversion.
-- Cache last transcript per `videoId` in `chrome.storage.session` for reuse during navigation.
+```bash
+OLLAMA_HOST="0.0.0.0" OLLAMA_ORIGINS="*" ollama serve
+```
 
-### Example Video
-- Try on: `https://www.youtube.com/watch?v=bXKG_7q9p7c`. This video typically exposes English auto-generated captions; when the page fetches `/api/timedtext` with `fmt=json3`, the badge should light up.
+- `OLLAMA_ORIGINS="*"` — allows the browser extension's `chrome-extension://` origin to call Ollama. Without this, Ollama rejects the request with `403 Forbidden` (see [Troubleshooting](#-troubleshooting)).
+- `OLLAMA_HOST="0.0.0.0"` — binds Ollama to all interfaces so it is reachable from the extension.
+
+### Install a model
+```bash
+# e.g. install the Gemma model used in this project
+ollama pull gemma4:26b-mlx
+```
+
+Verify the server is up and the model exists:
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
+### Configure the sidepanel
+1. Click ⚙️ Settings in the sidepanel
+2. Select **Ollama** as Server Type
+3. Verify Server URL is `http://localhost:11434`
+4. Set Model Name to your installed model (e.g., `gemma4:26b-mlx`)
+5. Click "Save Settings"
+
+## 🌐 OpenAI-Compatible Servers
+
+The extension works with any OpenAI-compatible API:
+
+**Supported Services:**
+- OpenAI API
+- Azure OpenAI
+- Anthropic Claude (via compatible wrapper)
+- LocalAI
+- Text Generation WebUI
+- LM Studio
+- And more...
+
+**Configuration Example:**
+```
+Server Type: OpenAI Compatible
+Server URL: https://api.openai.com
+API Key: sk-...
+Model Name: gpt-4
+```
+
+## 🎨 Architecture
+
+### Components
+1. **Content Script** (`src/content/index.js`): Main logic for transcript capture and in-page UI
+2. **Page Injector** (`src/inject/page.js`): Intercepts YouTube's timedtext API calls
+3. **Background Service Worker** (`src/background/service-worker.js`): Manages sidepanel and storage
+4. **Sidepanel** (`sidepanel.html` + `sidepanel.js`): UI for transcripts and summaries
+5. **Popup** (`public/popup.html` + `popup.js`): Quick access to sidepanel
+
+### Data Flow
+```
+YouTube API → Page Injector → Content Script → Chrome Storage → Sidepanel
+                                      ↓
+                                 Downloads (JSON/TXT)
+```
+
+### Detection Strategy
+- Wrap `window.fetch` and `XMLHttpRequest` in the page world so the extension sees the actual network calls YouTube makes.
+- Match URLs containing `/api/timedtext` with a `v=` parameter.
+- After the response, verify `status` is OK and `content-type` contains `application/json`.
+- Signal once per current `videoId`; reset on navigation (`yt-navigate-finish` or a `MutationObserver` watching `ytd-watch-flexy`).
+
+## 🛠️ Development
+
+### Project Structure
+```
+youtube_transcript_extension-main/
+├── src/
+│   ├── content/
+│   │   └── index.js          # Content script
+│   ├── inject/
+│   │   └── page.js           # Page-world script
+│   └── background/
+│       └── service-worker.js # Background service worker
+├── public/
+│   ├── popup.html            # Extension popup
+│   └── popup.js
+├── sidepanel.html            # Sidepanel UI
+├── sidepanel.js              # Sidepanel logic
+├── start_ollama.sh           # Ollama launcher (OLLAMA_ORIGINS="*")
+├── vite.config.ts            # Build configuration
+└── package.json
+```
+
+### Build Commands
+```bash
+npm run dev   # Development build with watch mode
+npm run build # Production build
+```
+
+### Testing
+1. Build the extension
+2. Load in Chrome via `chrome://extensions`
+3. Navigate to a YouTube video
+4. Test keyboard shortcuts
+5. Open the sidepanel and test AI features
+
+## 🔐 Privacy & Security
+- All processing happens client-side
+- Transcripts are stored locally in Chrome storage
+- No external servers are accessed except the configured AI endpoints
+- API keys are stored securely in Chrome sync storage
+- No tracking or analytics
+
+## 🐛 Troubleshooting
+
+### "Summarize" fails with HTTP 403 Forbidden
+A `403 Forbidden` on `POST http://localhost:11434/api/chat` means **Ollama is rejecting the browser extension's origin** — it was started without `OLLAMA_ORIGINS="*"`.
+
+Fix it:
+1. Stop the current `ollama serve` (Ctrl+C in its terminal).
+2. Restart it with the launcher: `./start_ollama.sh`
+3. Confirm the env is right — you should see a `200` (not `403`) for this request:
+   ```bash
+   curl -X POST http://localhost:11434/api/chat \
+     -H "Origin: chrome-extension://anything" \
+     -H "Content-Type: application/json" \
+     -d '{"model":"gemma4:26b-mlx","messages":[{"role":"user","content":"hi"}],"stream":false}'
+   ```
+4. Retry "Summarize" in the sidepanel.
+
+Note: starting Ollama with a plain `ollama serve` (no `OLLAMA_ORIGINS`) will reproduce this 403. The model must also be installed (`ollama list`) and the model name in the sidepanel settings must match.
+
+### No transcript captured
+- Ensure the video has captions enabled
+- Try toggling captions on/off
+- Some videos may not have transcripts available
+
+### Cmd+B downloads JSON instead of TXT / Chinese characters become `???`
+- Both were fixed in v0.2.0; make sure you're using the latest build.
+
+### AI summarization fails
+- **Ollama**: Ensure Ollama is running via `./start_ollama.sh` and that it was started with `OLLAMA_ORIGINS="*"` (otherwise see the 403 section above)
+- **OpenAI**: Verify the API key is correct
+- Check the server URL is accessible and the model name matches `ollama list`
+- Check the browser console for error details
+
+### Sidepanel doesn't update
+- Click "Refresh" in the sidepanel
+- Re-capture the transcript with Cmd+I
+- Check Chrome storage in DevTools
+
+## 📝 Changelog
+
+### v0.2.0 (Current)
+- ✅ Fixed Chinese/Unicode character support in filenames
+- ✅ Fixed Cmd+B shortcut to download TXT instead of JSON
+- ✅ Fixed both keyboard shortcuts with proper event handling
+- ✅ Added sidepanel interface
+- ✅ Added AI summarization (Ollama + OpenAI compatible)
+- ✅ Added configurable summary prompts
+- ✅ Added summary download functionality
+- ✅ Added background service worker
+- ✅ Improved UI/UX across all components
+
+### v0.1.0
+- Initial release
+- Basic transcript capture
+- JSON download
+- In-page panel with search
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - feel free to use and modify as needed.
+
+## 🙏 Acknowledgments
+
+Built with:
+- Vite + @crxjs/vite-plugin
+- Chrome Extension Manifest V3
+- Ollama for local AI
+- OpenAI-compatible API standards
