@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff3b3b"/>
+      <stop offset="0.55" stop-color="#e60000"/>
+      <stop offset="1" stop-color="#b30000"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.22" cy="0.12" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe680"/>
+      <stop offset="1" stop-color="#ffb300"/>
+    </linearGradient>
+    <clipPath id="clip"><rect x="0" y="0" width="128" height="128" rx="26"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#clip)">
+    <!-- background -->
+    <rect x="0" y="0" width="128" height="128" fill="url(#bg)"/>
+    <!-- soft top-left glow -->
+    <rect x="0" y="0" width="128" height="128" fill="url(#sheen)"/>
+
+    <!-- transcript bars -->
+    <rect x="16" y="46" width="34" height="10" rx="5" fill="#ffffff" opacity="0.97"/>
+    <rect x="16" y="62" width="46" height="10" rx="5" fill="#ffffff" opacity="0.97"/>
+    <rect x="16" y="78" width="28" height="10" rx="5" fill="#ffffff" opacity="0.97"/>
+
+    <!-- play triangle -->
+    <path d="M74 36 L112 64 L74 92 Z" fill="#ffffff" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+  </g>
+
+  <!-- sparkle (AI), top-right -->
+  <path d="M103 13 C105.5 22.5 110.5 26.5 116 28 C110.5 29.5 105.5 33.5 103 43 C100.5 33.5 95.5 29.5 90 28 C95.5 26.5 100.5 22.5 103 13 Z"
+        fill="url(#spark)"/>
+</svg>
